@@ -281,39 +281,3 @@ async def create_guide(interaction: discord.Interaction, category, page: int = 0
     )
 
     return pages, embed, view, selector
-
-@bot.event
-async def on_interaction(interaction: discord.Interaction):
-    if interaction.type != discord.InteractionType.component:
-        return
-    if interaction.data["custom_id"] == "init-msg":
-        category = bot.get_channel(CATEGORY)
-        pages, embed, view, selector = await create_guide(interaction, category, 0)
-        view.add_item(selector)
-        return await interaction.response.send_message(
-            embed = embed,
-            view = view,
-            ephemeral = True
-        )
-    if interaction.data["custom_id"] == "change-category":
-        category = bot.get_channel(int(interaction.data["values"][0]))
-        pages, embed, view, selector = await create_guide(interaction, category, 0)
-        view.add_item(selector)
-        return await interaction.response.edit_message(embed = embed, view = view)
-    if interaction.data["custom_id"].startswith("page="):
-        cat_id = interaction.data["custom_id"].split("id=")[1]
-        category = bot.get_channel(int(cat_id)) if cat_id != "None" else None
-        page = int(interaction.data["custom_id"].split("page=")[1].split(";")[0])
-        pages, embed, view, selector = await create_guide(interaction, category, page)
-        if interaction.message.flags.ephemeral:
-            view.add_item(selector)
-        else:
-            view.add_item(
-                discord.ui.Button(
-                    style = discord.ButtonStyle.grey,
-                    custom_id = 'init-msg',
-                    label = 'Guide',
-                    emoji = discord.PartialEmoji.from_str(chr(129517)), #Compass emoji
-                )
-            )
-        return await interaction.response.edit_message(embed = embed, view = view)

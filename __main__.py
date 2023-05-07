@@ -7,6 +7,7 @@ import time
 import os
 import pickle
 import traceback
+import math
 
 from defaults import *
 
@@ -17,20 +18,6 @@ for dir_name, dir_listing, file_listing in os.walk(ROOT_COMMANDS):
         if file_name.endswith(".py"):
             print(dir_name + "/" + file_name)
             exec(open(dir_name + "/" + file_name).read())
-
-@bot.event
-async def on_raw_reaction_add(payload):
-    await handle_raw_reaction(payload)
-@bot.event
-async def on_raw_reaction_remove(payload):
-    await handle_raw_reaction(payload)
-@bot.event
-async def on_ready():
-    await tree.sync(guild = discord.Object(GUILD))
-    await update_presence(1)
-@bot.event
-async def on_message(msg):
-    give_xp(msg.author)
 
 # ==================================================================================================================== #
 # ==================================================================================================================== #
@@ -58,30 +45,30 @@ starred_timeout = {}
 
 async def handle_raw_reaction(payload):
     await update_presence()
-    if str(payload.emoji) != LISTENING_EMOJIS:
+    if str(payload.emoji) not in LISTENING_EMOJIS:
         return
     msg = await bot.get_channel(payload.channel_id).fetch_message(payload.message_id)
     for reaction in msg.reactions:
         if str(reaction.emoji) == str(payload.emoji):
             break
-        else:
-            return #print("no matching emoji found")
+    else:
+        return print("no matching emoji found")
 
     if str(reaction.emoji) == STAR_EMOJI:
         return await handle_add_star(msg, reaction)
     if str(reaction.emoji) == DEAD_EMOJI:
-        return await handle_add_star(msg, reaction)
+        return await handle_add_dead(msg, reaction)
 
 async def handle_add_dead(msg, reaction):
-    if msg.user.bot:
+    if msg.author.bot:
         return
     if os.path.isfile(ROOT_DATA + f"dead/{msg.id}"):
         return
     if reaction.count < BAD_COUNT:
         return
 
-    # await msg.reply("Wow, people think that comment sucked! That'll cost you 150 XP")
     give_xp(msg.author, -150)
+    await msg.reply("Wow, people think that comment sucked! That'll cost you 150 XP")
     open(ROOT_DATA + "dead/" + str(msg.id), "w+").write("")
 
 async def handle_remove_star(msg, reaction):
@@ -94,6 +81,7 @@ async def handle_remove_star(msg, reaction):
     except FileNotFoundError:
         return
     await starred_msg.delete()
+    give_xp(msg.author, -500)
     os.remove(f"stars/{msg.id}")
 
 async def handle_add_star(msg, reaction):
@@ -126,7 +114,7 @@ async def handle_add_star(msg, reaction):
     if len(attachments):
         embed.add_field(
             name = 'Attachments',
-            value = ' | '.join(f"[[{i+1}]]({u})" for i, u in enumerate(attachments[:4])),
+            value = ' | '.join(f"[[{u.split('?')[0].rsplit('.')[-1]}]]({u})" for u in attachments[:4]),
             inline = False
         )
     try:
@@ -179,5 +167,67 @@ async def handle_add_star(msg, reaction):
 # ==================================================================================================================== #
 
 
+@bot.event
+async def on_raw_reaction_add(payload):
+    await handle_raw_reaction(payload)
+@bot.event
+async def on_raw_reaction_remove(payload):
+    await handle_raw_reaction(payload)
+@bot.event
+async def on_ready():
+    await tree.sync(guild = discord.Object(GUILD))
+    await update_presence(1)
+@bot.event
+async def on_message(msg):
+    give_xp(msg.author)
+
+@bot.event
+async def on_interaction(interaction: discord.Interaction):
+    if interaction.type != discord.InteractionType.component:
+        return
+    if interaction.data["custom_id"] == "init-msg":
+        category = bot.get_channel(CATEGORY)
+        pages, embed, view, selector = await create_guide(interaction, category, 0)
+        view.add_item(selector)
+        return await interaction.response.send_message(
+            embed = embed,
+            view = view,
+            ephemeral = True
+        )
+    if interaction.data["custom_id"] == "change-category":
+        category = bot.get_channel(int(interaction.data["values"][0]))
+        pages, embed, view, selector = await create_guide(interaction, category, 0)
+        view.add_item(selector)
+        return await interaction.response.edit_message(embed = embed, view = view)
+    if interaction.data["custom_id"].startswith("page="):
+        cat_id = interaction.data["custom_id"].split("id=")[1]
+        category = bot.get_channel(int(cat_id)) if cat_id != "None" else None
+        page = int(interaction.data["custom_id"].split("page=")[1].split(";")[0])
+        pages, embed, view, selector = await create_guide(interaction, category, page)
+        if interaction.message.flags.ephemeral:
+            view.add_item(selector)
+        else:
+            view.add_item(
+                discord.ui.Button(
+                    style = discord.ButtonStyle.grey,
+                    custom_id = 'init-msg',
+                    label = 'Guide',
+                    emoji = discord.PartialEmoji.from_str(chr(129517)), #Compass emoji
+                )
+            )
+        return await interaction.response.edit_message(embed = embed, view = view)
+    if interaction.data["custom_id"].startswith("xp-start="):
+        start = int(interaction.data["custom_id"].split("xp-start=")[1].split(";")[0])
+        user_id = int(interaction.data["custom_id"].split("user=")[1])
+        user = bot.get_guild(GUILD).get_member(user_id)
+        if not user:
+            user = interaction.user
+        embed, view = await xp_create_embed(interaction.user, user, start)
+        await interaction.response.edit_message(embed = embed, view = view)
+
 if __name__ == "__main__":
+<<<<<<< Updated upstream
     bot.run("accidentally posted token lol")
+=======
+    bot.run("won't happen again lol")
+>>>>>>> Stashed changes
