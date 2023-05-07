@@ -180,4 +180,4 @@ async def handle_add_star(msg, reaction):
 
 
 if __name__ == "__main__":
-    bot.run("MTEwMzgwMDcyNTAyNjM3MzcwMg.GUyg5x.FWgILjuBzh_oln8zk9MqTIpQx8qJoAsEva6j4U")
+    bot.run("accidentally posted token lol")
