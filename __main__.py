@@ -1,13 +1,20 @@
-import discord
-from discord.ext import commands
-import json
-import re
-import random
-import time
-import os
-import pickle
-import traceback
-import math
+try:
+    import os
+    import discord
+    from discord.ext import commands
+    import json
+    import re
+    import random
+    import time
+    import pickle
+    import traceback
+    import math
+    import subprocess
+    import asyncio
+    import datetime
+    from phevaluator import evaluate_cards
+except:
+    os.run("python3.10 -m pip install -U pip discord aiohttp[speedups] phevaluator --user")
 
 from defaults import *
 
@@ -18,6 +25,17 @@ for dir_name, dir_listing, file_listing in os.walk(ROOT_COMMANDS):
         if file_name.endswith(".py"):
             print(dir_name + "/" + file_name)
             exec(open(dir_name + "/" + file_name).read())
+
+data_dirs = [
+    "dead",
+    "games/poker",
+    "jailed",
+    "levels/pfp",
+    "levels/saved",
+    "stars"
+]
+for d in data_dirs:
+    os.mkdirs(ROOT_DATA + d, exist_ok = True)
 
 # ==================================================================================================================== #
 # ==================================================================================================================== #
@@ -36,6 +54,72 @@ async def update_presence(force = 0):
         status = discord.Status.idle
     )
     presence_time = time.time()
+
+@tree.command(
+    name = "tiers",
+    description = "Understand the roles and tiers available in the Timcast Discord server",
+    guild = discord.Object(GUILD)
+)
+@discord.app_commands.guild_only()
+async def com_tiers(interaction: discord.Interaction):
+    ephemeral = (interaction.channel.id not in BOT_CHANNELS) and not interaction.permissions.administrator
+    msg = f"""
+<@&1078137967727628320> - $10/mo
+
+**Call in or ask questions on the After Show:**
+<@&1085655143816630312> - $10/mo for 6 months
+
+<@&1093386797280669716> - $25/mo
+
+<@&1085998959908106280> - $100/mo"""
+    embed = discord.Embed(
+        title = "Roles",
+        description = msg,
+        color = 0xff0088
+    )
+    return await interaction.response.send_message(embed = embed, ephemeral = ephemeral)
+
+def help_msg(member):
+    return f"""\
+Hello, <@{member.id}>!
+**Thanks for joining the Timcast Discord server!**
+
+\x31\ufe0f\u20e3 To get started, click this button: </link:{LINK_COMMAND_ID}>
+Then send the message. On PC, hit the enter key
+
+\x32\ufe0f\u20e3 Follow the instructions from BeanieBot to provide your email
+You will receive a verification code, be sure to check your spam folder
+
+\x33\ufe0f\u20e3 Once you receive your code, click this button: </verify:{VERIFY_COMMAND_ID}>
+Then send the message. On PC, hit the enter key
+
+\x34\ufe0f\u20e3 Enter the code you just received in this dialog box and hit submit.
+And that's it!
+
+**Having trouble?**
+Please visit <#{ONBOARD_HELP_CHANNEL}> and open a ticket, we will assist you as soon as we can."""
+
+@tree.command(
+    name = "help-onboarding",
+    description = "Help someone else with onboarding",
+    guild = discord.Object(GUILD)
+)
+@discord.app_commands.describe(
+    member = "Who to ping with help"
+)
+@discord.app_commands.guild_only()
+async def com_help_onboarding(interaction: discord.Interaction, member: discord.Member):
+    ephemeral = (interaction.channel.id not in BOT_CHANNELS) and not interaction.permissions.administrator
+    member = await interaction.guild.fetch_member(member.id)
+    if member.is_on_mobile():
+        send_inst = "Then, hit the send button"
+    else:
+        send_inst = "Then, press the enter key"
+    print(member.mobile_status)
+    print(member.desktop_status)
+    print(member.web_status)
+    print(member.activity)
+    return await interaction.response.send_message(help_msg(member))
 
 # ==================================================================================================================== #
 # ==================================================================================================================== #
@@ -180,9 +264,23 @@ async def on_ready():
 @bot.event
 async def on_message(msg):
     give_xp(msg.author)
+    if msg.channel.id != ONBOARDING_CHANNEL:
+        return
+    if msg.author.id == BEANIE_BOT_ID:
+        global VERIFY_COMMAND_ID, LINK_COMMAND_ID
+        if msg.interaction.name == "verify":
+            VERIFY_COMMAND_ID = msg.interaction.id
+        elif msg.interaction.name == "link":
+            LINK_COMMAND_ID = msg.interaction.id
+        return
 
 @bot.event
 async def on_interaction(interaction: discord.Interaction):
+    if "custom_id" in interaction.data and interaction.data["custom_id"].startswith("poker-"):
+        return await on_poker_interaction(interaction)
+    if "custom_id" in interaction.data and interaction.data["custom_id"].startswith("chips-"):
+        return await on_chips_interaction(interaction)
+
     if interaction.type != discord.InteractionType.component:
         return
     if interaction.data["custom_id"] == "init-msg":
@@ -222,12 +320,13 @@ async def on_interaction(interaction: discord.Interaction):
         user = bot.get_guild(GUILD).get_member(user_id)
         if not user:
             user = interaction.user
-        embed, view = await xp_create_embed(interaction.user, user, start)
-        await interaction.response.edit_message(embed = embed, view = view)
+        embed, view, fp = await xp_create_embed(interaction.user, user, start)
+        return await interaction.response.edit_message(embed = embed, view = view, attachments = interaction.message.attachments)
+    if interaction.data["custom_id"].startswith("cat-page="):
+        page = int(interaction.data["custom_id"].split("page=")[1].split(";")[0])
+        pages, embed, view = await create_main_guide(interaction, page)
+        return await interaction.response.edit_message(embed = embed, view = view)
+
 
 if __name__ == "__main__":
-<<<<<<< Updated upstream
-    bot.run("accidentally posted token lol")
-=======
-    bot.run("won't happen again lol")
->>>>>>> Stashed changes
+    bot.run("not today!")

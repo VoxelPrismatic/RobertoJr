@@ -12,6 +12,10 @@ try:
 except:
     persistent_ids = []
 
+VISIBILITY_WARNING = "\n\n**Note:** Only channels you have access to will be displayed here. " \
+                     "Click the refresh button if you think something is missing"
+CHANNELS_PER_PAGE = 6
+
 
 
 # ==================================================================================================================== #
@@ -31,19 +35,8 @@ except:
 )
 @discord.app_commands.guild_only()
 async def cmd_sendmsg(interaction: discord.Interaction):
-    view = discord.ui.View(timeout = None)
-    view.add_item(
-        discord.ui.Button(
-            style = discord.ButtonStyle.blurple,
-            custom_id = 'init-msg',
-            label = 'Guide',
-            emoji = discord.PartialEmoji.from_str(chr(129517)) #Compass emoji
-        )
-    )
-    await interaction.channel.send("""\
-**Welcome to the Timcast server!**
-Click the button below to learn more about the purpose of each channel
-""", view = view)
+    pages, embed, view = await create_main_guide(interaction, 0)
+    await interaction.channel.send(embed = embed, view = view)
     await interaction.response.send_message("Done!", ephemeral = True, delete_after = 5)
 
 
@@ -87,6 +80,9 @@ async def cmd_setdesc(interaction: discord.Interaction, description: str = "", c
         channel = bot.get_channel(channel_id)
         msg = await channel.fetch_message(message_id)
         pages, embed, view, selector = await create_guide(interaction, channel.category, 0)
+        if VISIBILITY_WARNING not in msg.embeds[0].description:
+            embed.description = embed.description.replace(VISIBILITY_WARNING, "")
+            view = discord.ui.View(timeout = None)
         view.add_item(
             discord.ui.Button(
                 style = discord.ButtonStyle.grey,
@@ -157,10 +153,11 @@ async def cmd_getdesc(interaction: discord.Interaction, custom_channel: discord.
     guild = discord.Object(GUILD)
 )
 @discord.app_commands.describe(
-    persist = "Whether or not this message should persist (admin only)"
+    persist = "Whether or not this message should persist (admin only)",
+    buttons = "Whether or not this message should have buttons (admin only)"
 )
 @discord.app_commands.guild_only()
-async def cmd_guide(interaction: discord.Interaction, persist: bool = False):
+async def cmd_guide(interaction: discord.Interaction, persist: bool = False, buttons: bool = True):
     pages, embed, view, selector = await create_guide(interaction, interaction.channel.category, 0)
     if not(persist and interaction.permissions.administrator):
         view.add_item(selector)
@@ -169,6 +166,9 @@ async def cmd_guide(interaction: discord.Interaction, persist: bool = False):
             view = view,
             ephemeral = True
         )
+    if buttons is False:
+        embed.description = embed.description.replace(VISIBILITY_WARNING, "")
+        view = discord.ui.View(timeout = None)
     view.add_item(
         discord.ui.Button(
             style = discord.ButtonStyle.grey,
@@ -216,16 +216,17 @@ async def create_guide(interaction: discord.Interaction, category, page: int = 0
     for desc in descs:
         n += 1
         st += desc + "\n\n"
-        if n == 8:
+        if n == CHANNELS_PER_PAGE:
             pages.append(st.strip())
             st = ""
+            n = 0
     if st:
         pages.append(st.strip())
     page = max(min(page, len(pages) - 1), 0)
 
     embed = discord.Embed(
         title = category.name.upper() if category else "(uncategorized)",
-        description = pages[page] + "\n\n**Note:** Only channels you have access to will be displayed here",
+        description = pages[page] + VISIBILITY_WARNING + "\n\nVisit the category directory by clicking here: <#1103556372550909992>",
         color = 0x0E7FAA
     )
     view = discord.ui.View(timeout = None)
@@ -281,3 +282,106 @@ async def create_guide(interaction: discord.Interaction, category, page: int = 0
     )
 
     return pages, embed, view, selector
+
+async def create_main_guide(interaction: discord.Interaction, page: int = 0):
+    channels = {}
+    categories = {}
+    for category in interaction.guild.categories:
+        top_channel = None
+        min_channel = None
+        top_position = 100000
+        min_position = 100000
+        for channel in category.channels:
+            if not channel.permissions_for(interaction.user).view_channel:
+                continue
+            if channel.position < top_position and channel.type in TEXT_CHATS:
+                top_channel = channel
+                top_position = channel.position
+            elif channel.position < min_position:
+                min_channel = channel
+                min_position = channel.position
+        top_channel = top_channel or min_channel
+        if top_channel is None:
+            continue
+        if top_channel.category:
+            channels[category.position] = top_channel
+        if top_channel.category not in categories:
+            categories[top_channel.category.position if channel.category else -1] = channel.category
+    descs = []
+    for position in sorted(list(channels)):
+        channel = channels[position]
+        if channel.category.id in channel_descs:
+            desc = channel_descs[channel.category.id]
+        else:
+            desc = None
+        if channel.category:
+            descs.append(f"**{channel.category.name.upper()}**\n<#{channel.id}>\n> {desc or '*<no description set>*'}")
+    pages = []
+    st = ""
+    n = 0
+    for desc in descs:
+        n += 1
+        st += desc + "\n\n"
+        if n == CHANNELS_PER_PAGE:
+            pages.append(st.strip())
+            st = ""
+            n = 0
+    if st:
+        pages.append(st.strip())
+    page = max(min(page, len(pages) - 1), 0)
+
+    embed = discord.Embed(
+        title = "Main Guide",
+        description = pages[page] + VISIBILITY_WARNING,
+        color = 0x0E7FAA
+    )
+    view = discord.ui.View(timeout = None)
+    view.add_item(
+        discord.ui.Button(
+            style = discord.ButtonStyle.grey if (page - 1) < 0 else discord.ButtonStyle.blurple,
+            custom_id = f'cat-page={page - 1}',
+            label = '<',
+            disabled = (page - 1) < 0
+        )
+    )
+    view.add_item(
+        discord.ui.Button(
+            style = discord.ButtonStyle.grey,
+            custom_id = f'cat-page',
+            label = f"{page + 1}/{len(pages)}",
+            disabled = True
+        )
+    )
+    view.add_item(
+        discord.ui.Button(
+            style = discord.ButtonStyle.grey if (page + 1) >= len(pages) else discord.ButtonStyle.blurple,
+            custom_id = f'cat-page={page + 1}',
+            label = '>',
+            disabled = (page + 1) >= len(pages)
+        )
+    )
+    view.add_item(
+        discord.ui.Button(
+            style = discord.ButtonStyle.green if len(pages) == 1 else discord.ButtonStyle.grey,
+            custom_id = f'cat-page={page}',
+            label = f"Refresh"
+        )
+    )
+    view.add_item(
+        discord.ui.Button(
+            style = discord.ButtonStyle.grey,
+            custom_id = 'init-msg',
+            label = 'Guide',
+            emoji = discord.PartialEmoji.from_str(chr(129517)), #Compass emoji
+        )
+    )
+    embed.set_footer(
+        text = "Navigate with Roberto Jr. with /guide",
+        icon_url = "https://cdn.discordapp.com/avatars/1103800725026373702/52197b98a00b8732f9bb2993ab880d1c.webp"
+    )
+    embed.set_author(
+        name = "TIMCAST",
+        icon_url = "https://cdn.discordapp.com/icons/1078108746410119208/a_6f9a91c25e9f3589f14f5c5508c1ee6c.webp"
+    )
+
+    return pages, embed, view

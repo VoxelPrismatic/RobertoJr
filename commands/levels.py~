@@ -1,0 +1,13 @@
+import pickle
+import json
+
+data1 = pickle.loads(open("../data/xp.pickle", "rb").read())
+data2 = json.loads(open("levels.json").read())
+
+for k in list(data2):
+    data2[int(k)] = data2[k]
+    del data2[k]
+
+# data1.update(data2)
+
+open("../data/xp.pickle", "wb").write(pickle.dumps(data2))
