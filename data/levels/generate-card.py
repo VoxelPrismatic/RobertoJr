@@ -9,7 +9,7 @@ parser.add_argument("name", type = str, help = "Username")
 parser.add_argument("elite", type = int, help = "Is the user elite?")
 args = parser.parse_args()
 
-ROOT_IMG = os.getcwd()
+ROOT_IMG = os.environ["PWD"]
 if "/data/levels" not in ROOT_IMG:
     ROOT_IMG += "/data/levels"
 try:

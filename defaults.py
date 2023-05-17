@@ -5,7 +5,7 @@ TOP_COUNT = 10
 DEL_COUNT = 8
 BAD_COUNT = 5
 
-ROOT = os.getcwd() + "/"
+ROOT = os.environ["PWD"] + "/"
 ROOT_DATA = ROOT + "data/"
 ROOT_COMMANDS = ROOT + "commands/"
 

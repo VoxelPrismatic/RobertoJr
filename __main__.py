@@ -14,7 +14,7 @@ try:
     import datetime
     from phevaluator import evaluate_cards
 except:
-    os.run("python3.10 -m pip install -U pip discord aiohttp[speedups] phevaluator --user")
+    os.run("python3 -m pip install -U pip discord aiohttp[speedups] phevaluator --user")
 
 from defaults import *
 
@@ -35,7 +35,7 @@ data_dirs = [
     "stars"
 ]
 for d in data_dirs:
-    os.mkdirs(ROOT_DATA + d, exist_ok = True)
+    os.makedirs(ROOT_DATA + d, exist_ok = True)
 
 # ==================================================================================================================== #
 # ==================================================================================================================== #
