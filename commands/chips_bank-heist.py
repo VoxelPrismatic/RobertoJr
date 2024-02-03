@@ -21,20 +21,20 @@ def chips_bank_heist_rng_view(interaction, amount, next_stage, *, rolls = [], vi
     return view
 
 def chips_bank_heist_fail(interaction):
-    open(ROOT_DATA + "jailed/" + str(interaction.user.id), "w+").write("")
+    open(ROOT.DATA + "jailed/" + str(interaction.user.id), "w+").write("")
 
 def chips_bank_heist_success():
-    last_time = int(open(ROOT_DATA + "bank_rob_time").read())
+    last_time = int(open(ROOT.DATA + "bank_rob_time").read())
     this_time = int(get_time())
-    rewards = (this_time - last_time) * 2
-    open(ROOT_DATA + "bank_rob_time", "w+").write(str(this_time))
+    rewards = (this_time - last_time) / 6 # One chip every 10 seconds
+    open(ROOT.DATA + "bank_rob_time", "w+").write(str(this_time))
     return rewards
 
 def chips_bank_heist_stage_0(interaction):
-    last_time = int(open(ROOT_DATA + "bank_rob_time").read())
+    last_time = int(open(ROOT.DATA + "bank_rob_time").read())
     this_time = int(get_time())
     msg = ""
-    if (this_time - last_time) * 2 < 500:
+    if (this_time - last_time) * 2 < 1000:
         msg = f"You follow the news closely, and remember that the bank was last robbed <t:{last_time}:R>, which is "
         msg += "far too short of a time to make any substantial earnings. But, you are too excited to try out your new "
         msg += "strategy and press on.\n\n"
@@ -280,7 +280,7 @@ def chips_bank_heist_stage_4S(interaction):
             chips_bank_heist_fail(interaction)
 
             msg += "**-~=:[ MISSION SUMMARY ]:=~-**\n**Result:** Failure\n**Penalty:** Chips seized for 24 hours\n"
-            msg += f"**Loss:** {loss}x {DEAD_EMOJI}"
+            msg += f"**Loss:** {loss}x {ID.EMOJI.DEAD}"
 
         else:
             msg += "Quickly, you pull out your weapon and shoot her gun away, leaving her unharmed. "
@@ -299,14 +299,14 @@ def chips_bank_heist_stage_4S(interaction):
                 msg += "teller, your bag got stuck in the hinges of the vault. You rip it away, and a small hole is "
                 msg += "left behind, costing you 10% of your earnings. Being aware of the officer, you neglect "
                 msg += "the chips that fell out of your bag, and quickly rush towards the exit.\n\n"
-                msg += f"**-~=:[ MISSION SUMMARY ]:=~-**\n**Result:** Success\n**Reward:** {rewards}x {DEAD_EMOJI} (90% of possible)"
-                msg += f"\n**Total Chips:** {give_chips(interaction.user, rewards)}x {DEAD_EMOJI}"
+                msg += f"**-~=:[ MISSION SUMMARY ]:=~-**\n**Result:** Success\n**Reward:** {rewards}x {ID.EMOJI.DEAD} (90% of possible)"
+                msg += f"\n**Total Chips:** {give_chips(interaction.user, rewards)}x {ID.EMOJI.DEAD}"
     else:
         rewards = chips_bank_heist_success()
         color = 0x22cc22
         msg += "you notice her cowering in the corner. You pay no mind to her and exit the building, safely.\n\n"
-        msg += f"**-~=:[ MISSION SUMMARY ]:=~-**\n**Result:** Success\n**Reward:** {rewards}x {DEAD_EMOJI} (100% turnout!)"
-        msg += f"\n**Total Chips:** {give_chips(interaction.user, rewards)}x {DEAD_EMOJI}"
+        msg += f"**-~=:[ MISSION SUMMARY ]:=~-**\n**Result:** Success\n**Reward:** {rewards}x {ID.EMOJI.DEAD} (100% turnout!)"
+        msg += f"\n**Total Chips:** {give_chips(interaction.user, rewards)}x {ID.EMOJI.DEAD}"
 
     return msg, view, color
 
@@ -391,8 +391,8 @@ def chips_bank_heist_stage_71A(interaction):
         msg += "open, and you decide to scream. Because you stuffed your old clothes up your shirt and put on a woman's "
         msg += "wig, you looked like a massive tranny to the policeman. He immediately apologizes and rounds everyone up "
         msg += "to leave...\n\n"
-        msg += f"**-~=:[ MISSION SUMMARY ]:=~-**\n**Result:** Success\n**Reward:** {rewards}x {DEAD_EMOJI} ({cost}% of possible)"
-        msg += f"\n**Total Chips:** {give_chips(interaction.user, rewards)}x {DEAD_EMOJI}"
+        msg += f"**-~=:[ MISSION SUMMARY ]:=~-**\n**Result:** Success\n**Reward:** {rewards}x {ID.EMOJI.DEAD} ({cost}% of possible)"
+        msg += f"\n**Total Chips:** {give_chips(interaction.user, rewards)}x {ID.EMOJI.DEAD}"
         color = 0x22cc22
     return msg, view, color
 
@@ -426,8 +426,8 @@ def chips_bank_heist_stage_71B(interaction):
         msg += "open, and you decide to scream. Because you stuffed your old clothes up your shirt and put on a woman's "
         msg += "wig, you looked like a massive tranny to the policeman. He immediately apologizes and rounds everyone up "
         msg += "to leave...\n\n"
-        msg += f"**-~=:[ MISSION SUMMARY ]:=~-**\n**Result:** Success\n**Reward:** {rewards}x {DEAD_EMOJI} ({cost}% of possible)"
-        msg += f"\n**Total Chips:** {give_chips(interaction.user, rewards)}x {DEAD_EMOJI}"
+        msg += f"**-~=:[ MISSION SUMMARY ]:=~-**\n**Result:** Success\n**Reward:** {rewards}x {ID.EMOJI.DEAD} ({cost}% of possible)"
+        msg += f"\n**Total Chips:** {give_chips(interaction.user, rewards)}x {ID.EMOJI.DEAD}"
         color = 0x22cc22
     return msg, view, color
 
@@ -449,8 +449,8 @@ def chips_bank_heist_stage_71C(interaction):
         msg += "Fortunately, the cops start searching through the coffee shop and the thrift store before checking the "
         msg += f"fire stairs, leaving you ample time to reach the top of the {random.randint(6, 9)} story building. "
         msg += "Out of sight, you lie down, and let out a gasp of relief, knowing you are safe.\n\n"
-        msg += f"**-~=:[ MISSION SUMMARY ]:=~-**\n**Result:** Success\n**Reward:** {rewards}x {DEAD_EMOJI} ({cost}% of possible)"
-        msg += f"\n**Total Chips:** {give_chips(interaction.user, rewards)}x {DEAD_EMOJI}"
+        msg += f"**-~=:[ MISSION SUMMARY ]:=~-**\n**Result:** Success\n**Reward:** {rewards}x {ID.EMOJI.DEAD} ({cost}% of possible)"
+        msg += f"\n**Total Chips:** {give_chips(interaction.user, rewards)}x {ID.EMOJI.DEAD}"
         color = 0x22cc22
 
     return msg, view, color
@@ -466,8 +466,8 @@ def chips_bank_heist_stage_72A(interaction):
         msg += "With a massive crash as you hit the road, you open your eyes to see all the cops behind you. Relieved, "
         msg += "you feel around in the passenger seat for the bag of chips, but find nothing. A bit worried now, you look "
         msg += "over into the rear seats to find nothing, and then look up at the sunroof, which was open the entire time."
-        msg += f"\n\n**-~=:[ MISSION SUMMARY ]:=~-**\n**Result:** Success??\n**Reward:** 0x {DEAD_EMOJI} "
-        msg += f"(note to self: close the sunroof)\n**Total Chips:** {give_chips(interaction.user, 0)}x {DEAD_EMOJI}"
+        msg += f"\n\n**-~=:[ MISSION SUMMARY ]:=~-**\n**Result:** Success??\n**Reward:** 0x {ID.EMOJI.DEAD} "
+        msg += f"(note to self: close the sunroof)\n**Total Chips:** {give_chips(interaction.user, 0)}x {ID.EMOJI.DEAD}"
         color = 0x00ff88
     else:
         msg += "After crashing against the ground and spinning out, you look out of the windshield in a daze to see. "
@@ -477,8 +477,8 @@ def chips_bank_heist_stage_72A(interaction):
         msg += f"about {int(extra_cost * 100)}% of the chips inside flew out of the open window...\n\n"
         cost = int(cost * (1 - extra_cost))
         rewards = int(rewards * cost / 100)
-        msg += f"**-~=:[ MISSION SUMMARY ]:=~-**\n**Result:** Success\n**Reward:** {rewards}x {DEAD_EMOJI} ({cost}% of possible)"
-        msg += f"\n**Total Chips:** {give_chips(interaction.user, rewards)}x {DEAD_EMOJI}"
+        msg += f"**-~=:[ MISSION SUMMARY ]:=~-**\n**Result:** Success\n**Reward:** {rewards}x {ID.EMOJI.DEAD} ({cost}% of possible)"
+        msg += f"\n**Total Chips:** {give_chips(interaction.user, rewards)}x {ID.EMOJI.DEAD}"
         color = 0x22cc22
 
     return msg, view, color
@@ -495,8 +495,8 @@ def chips_bank_heist_stage_72B(interaction):
         msg += "Unfortunately, the other strap was caught around the headrest of the seat. As the car sinks lower, and you "
         msg += "run out of breath, you decide to abandon ship and make to the surface. The cops look down into the dark  "
         msg += "river, and are unable to spot you, so you swim to shore.\n\n"
-        msg += f"**-~=:[ MISSION SUMMARY ]:=~-**\n**Result:** Success??\n**Reward:** 0x {DEAD_EMOJI} "
-        msg += f"(note to self: close the sunroof)\n**Total Chips:** {give_chips(interaction.user, 0)}x {DEAD_EMOJI}"
+        msg += f"**-~=:[ MISSION SUMMARY ]:=~-**\n**Result:** Success??\n**Reward:** 0x {ID.EMOJI.DEAD} "
+        msg += f"(note to self: close the sunroof)\n**Total Chips:** {give_chips(interaction.user, 0)}x {ID.EMOJI.DEAD}"
         color = 0x00ff88
     else:
         msg += "Quickly, you swim to the surface to regain your breath, and soon start swimming to shore. Once you crawl "
@@ -506,8 +506,8 @@ def chips_bank_heist_stage_72B(interaction):
         msg += f"about {int(extra_cost * 100)}% of the chips stay inside the sinking car...\n\n"
         cost = int(cost * (1 - extra_cost))
         rewards = int(rewards * cost / 100)
-        msg += f"**-~=:[ MISSION SUMMARY ]:=~-**\n**Result:** Success\n**Reward:** {rewards}x {DEAD_EMOJI} ({cost}% of possible)"
-        msg += f"\n**Total Chips:** {give_chips(interaction.user, rewards)}x {DEAD_EMOJI}"
+        msg += f"**-~=:[ MISSION SUMMARY ]:=~-**\n**Result:** Success\n**Reward:** {rewards}x {ID.EMOJI.DEAD} ({cost}% of possible)"
+        msg += f"\n**Total Chips:** {give_chips(interaction.user, rewards)}x {ID.EMOJI.DEAD}"
         color = 0x22cc22
 
     return msg, view, color
@@ -547,21 +547,21 @@ def chips_bank_heist_stage_73A(interaction):
                 msg += "thanks to the violent maneuver.\n\n"
                 cost = int(cost * (1 - extra_cost / 100))
                 rewards = int(rewards * cost / 100)
-                msg += f"**-~=:[ MISSION SUMMARY ]:=~-**\n**Result:** Success\n**Reward:** {rewards}x {DEAD_EMOJI} ({cost}% of possible)"
-                msg += f"\n**Total Chips:** {give_chips(interaction.user, rewards)}x {DEAD_EMOJI}"
+                msg += f"**-~=:[ MISSION SUMMARY ]:=~-**\n**Result:** Success\n**Reward:** {rewards}x {ID.EMOJI.DEAD} ({cost}% of possible)"
+                msg += f"\n**Total Chips:** {give_chips(interaction.user, rewards)}x {ID.EMOJI.DEAD}"
                 color = 0x22cc22
         else:
             msg += "But, thanks to a well timed U-turn as you drove past an exit, and a subsequent merge on to a different "
             msg += "highway, you were able to lose them, and in style.\n\n"
             rewards = int(rewards * cost / 100)
-            msg += f"**-~=:[ MISSION SUMMARY ]:=~-**\n**Result:** Success\n**Reward:** {rewards}x {DEAD_EMOJI} ({cost}% of possible)"
-            msg += f"\n**Total Chips:** {give_chips(interaction.user, rewards)}x {DEAD_EMOJI}"
+            msg += f"**-~=:[ MISSION SUMMARY ]:=~-**\n**Result:** Success\n**Reward:** {rewards}x {ID.EMOJI.DEAD} ({cost}% of possible)"
+            msg += f"\n**Total Chips:** {give_chips(interaction.user, rewards)}x {ID.EMOJI.DEAD}"
             color = 0x22cc22
     else:
         msg += "But thanks to your erratic driving, swerving and overall unpredictability, you lost the cops miles back.\n\n"
         rewards = int(rewards * cost / 100)
-        msg += f"**-~=:[ MISSION SUMMARY ]:=~-**\n**Result:** Success\n**Reward:** {rewards}x {DEAD_EMOJI} ({cost}% of possible)"
-        msg += f"\n**Total Chips:** {give_chips(interaction.user, rewards)}x {DEAD_EMOJI}"
+        msg += f"**-~=:[ MISSION SUMMARY ]:=~-**\n**Result:** Success\n**Reward:** {rewards}x {ID.EMOJI.DEAD} ({cost}% of possible)"
+        msg += f"\n**Total Chips:** {give_chips(interaction.user, rewards)}x {ID.EMOJI.DEAD}"
         color = 0x22cc22
 
     return msg, view, color
@@ -606,6 +606,8 @@ async def get_chips_rob_bank(interaction: discord.Interaction, stage):
         case "73A":
             msg, view, color = chips_bank_heist_stage_73A(interaction)
 
+    if random.choice(PROMO_CHANCE) == 0:
+        msg += SHAMELESS_PROMO
     embed = discord.Embed(
         title = "Attempt at a bank heist",
         description = msg,
@@ -614,8 +616,8 @@ async def get_chips_rob_bank(interaction: discord.Interaction, stage):
     embed.set_footer(text = "Definitely less legal by West Virginia law...")
 
     if stage == "0":
-        return await interaction.response.send_message(embed = embed, view = view, ephemeral = interaction.channel.id not in BOT_CHANNELS)
+        return await interaction.response.send_message(embed = embed, view = view, ephemeral = interaction.channel.id not in ID.CHANNEL.BOTS)
 
     await interaction.response.edit_message(embed = embed, view = view)
     if heist_meme:
-        await interaction.followup.send(file = discord.File(open(ROOT_DATA + "HeistTraining.webm", "rb")))
+        await interaction.followup.send(file = discord.File(open(ROOT.DATA + "HeistTraining.webm", "rb")))

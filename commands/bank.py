@@ -1,38 +1,18 @@
 def get_time():
     return str(datetime.datetime.now().timestamp()).split(".")[0]
 
-open(ROOT_DATA + "bank_rob_time", "w+").write(str(get_time()))
+open(ROOT.DATA + "bank_rob_time", "w+").write(str(get_time()))
 
-try:
-    economy_pickle = pickle.loads(open(ROOT_DATA + "economy.pickle", "rb").read())
-except:
-    economy_pickle = {}
+# try:
+#     economy_pickle = pickle.loads(open(ROOT.DATA + "economy.pickle", "rb").read())
+# except:
+#     economy_pickle = {}
 
 
 economy_pickle_save = time.time()
 
 def give_chips(user, amount = 0):
-    try:
-        user_id = str(int(user)) # Ensure snowflake
-    except:
-        if user.bot:
-            return
-        user_id = str(user.id)
-
-    global economy_pickle_save, economy_pickle
-
-    if user_id not in economy_pickle:
-        economy_pickle[user_id] = amount
-    else:
-        economy_pickle[user_id] += amount
-
-    economy_pickle[user_id] = max(0, economy_pickle[user_id])
-
-    if time.time() - economy_pickle_save > 30:
-        economy_pickle_save = time.time()
-        open(ROOT_DATA + "economy.pickle", "wb+").write(pickle.dumps(economy_pickle))
-
-    return economy_pickle[user_id]
+    return give_xp(user, amount)
 
 def get_chips(user):
     try:
@@ -42,14 +22,12 @@ def get_chips(user):
             return
         user_id = str(user.id)
 
-    if user_id in os.listdir(ROOT_DATA + "jailed"):
-        mtime = os.stat(f"{ROOT_DATA}jailed/{user_id}").st_mtime
+    if user_id in os.listdir(ROOT.DATA + "jailed"):
+        mtime = os.stat(f"{ROOT.DATA}jailed/{user_id}").st_mtime
         if time.time() - mtime < 86400:
             return -1
-        os.remove(f"{ROOT_DATA}jailed/{user_id}")
-    if user_id not in economy_pickle:
-        economy_pickle[user_id] = 0
-    return economy_pickle[user_id]
+        os.remove(f"{ROOT.DATA}jailed/{user_id}")
+    return give_chips(user)
 
 
 async def chips_ponzi(interaction: discord.Interaction):
@@ -57,7 +35,9 @@ async def chips_ponzi(interaction: discord.Interaction):
     if "custom_id" in interaction.data:
         payout = int(interaction.data["custom_id"].split("payout=")[1].split(";")[0])
         chances = int(interaction.data["custom_id"].split("chances=")[1].split(";")[0])
-
+        months = int(interaction.data["custom_id"].split("months=")[1].split(";")[0]) + 1
+        yr = months // 12
+        mo = months % 12
 
         if "action=dissolve;" in interaction.data["custom_id"]:
             if chances / 10 > 75:
@@ -65,9 +45,14 @@ async def chips_ponzi(interaction: discord.Interaction):
             else:
                 msg = f"Your investors are upset, the company was just getting off the ground! The operation could "
                 msg += "definitely have lasted longer...\n\n"
-            msg += f"**-~=:[ MISSION SUMMARY ]:=~-**\n**Result:** Success\n**Payout:** {payout}x {DEAD_EMOJI}"
-            msg += f"\n**Total Chips:** {give_chips(interaction.user, payout)}x {DEAD_EMOJI}\n"
-            msg += f"**Chance of being caught this month:** {chances / 50:.2f}%"
+            msg += f"**-~=:[ MISSION SUMMARY ]:=~-**\n**Result:** Success\n**Payout:** {payout}x {ID.EMOJI.DEAD}"
+            msg += f"\n**Total Chips:** {give_chips(interaction.user, payout)}x {ID.EMOJI.DEAD}\n"
+            msg += f"**Chance of being caught this month:** {chances / 50:.2f}%\n"
+            msg += "**Operation duration:** "
+            if yr:
+                msg += f"{yr} year{'' if yr == 1 else 's'}"
+            if mo:
+                msg += f"{mo} month{'' if mo == 1 else 's'}"
             embed = discord.Embed(title = "Ponzi Scheme", description = msg, color = 0x22cc22)
             return await interaction.response.edit_message(embed = embed, view = view)
 
@@ -77,15 +62,28 @@ async def chips_ponzi(interaction: discord.Interaction):
     else:
         chances = 1
         payout = 1
+        months = 1
+        yr = 0
+        mo = 1
+
 
     if random.randint(1, 5000) < chances:
         msg = "As you walk towards the entrance of the company building, you see officers standing at the door. You ask "
         msg += "if anything was wrong, and they immediately show you a warrant for your arrest. It looks like one of "
         msg += "your investors was getting suspicious and reported you to the SEC, and all earnings from the operation "
         msg += "was seized permanently.\n\n"
+
+        if random.choice(PROMO_CHANCE) == 0:
+            msg += SHAMELESS_PROMO[2:] + "\n\n"
+
         msg += "**-~=:[ MISSION SUMMARY ]:=~-**\n**Result:** Failure\n**Penalty:** Chips seized for 24 hours\n"
-        msg += f"**Potential payout:** {payout}x {DEAD_EMOJI}\n"
-        msg += f"**Chance of being caught this month:** {min(chances, 5000) / 50:.2f}%"
+        msg += f"**Potential payout:** {payout}x {ID.EMOJI.DEAD}\n"
+        msg += f"**Chance of being caught this month:** {min(chances, 5000) / 50:.2f}%\n"
+        msg += "**Operation duration:** "
+        if yr:
+            msg += f"{yr} year{'' if yr == 1 else 's'}"
+        if mo:
+            msg += f"{mo} month{'' if mo == 1 else 's'}"
         chips_bank_heist_fail(interaction)
         embed = discord.Embed(title = "Ponzi Scheme", description = msg, color = 0xff0000)
         return await interaction.response.edit_message(embed = embed, view = view)
@@ -99,19 +97,27 @@ async def chips_ponzi(interaction: discord.Interaction):
     msg += "Ponzi immediately. So be careful out there.\n\n"
     msg += "**Note:** Performing a Ponzi Scheme is illegal, due to fraud. This is a completely satirical game, do not play "
     msg += "it in real life.\n\n"
-    msg += f"**Current Earnings:** {payout}x {DEAD_EMOJI}"
+    msg += f"**Current Earnings:** {payout}x {ID.EMOJI.DEAD}\n"
+    msg += "**Operation duration:** "
+    if yr:
+        msg += f"{yr} year{'' if yr == 1 else 's'}"
+    if mo:
+        msg += f"{mo} month{'' if mo == 1 else 's'}"
+
+    if random.choice(PROMO_CHANCE) == 0:
+        msg += SHAMELESS_PROMO
 
     view.add_item(
         discord.ui.Button(
             label = "Run Ponzi for another month",
-            custom_id = f"chips-ponzi={interaction.user.id};payout={payout};chances={chances}",
+            custom_id = f"chips-ponzi={interaction.user.id};payout={payout};chances={chances};months={months}",
             style = discord.ButtonStyle.green
         )
     )
     view.add_item(
         discord.ui.Button(
             label = "Cash out now",
-            custom_id = f"chips-ponzi={interaction.user.id};action=dissolve;payout={payout};chances={chances}",
+            custom_id = f"chips-ponzi={interaction.user.id};action=dissolve;payout={payout};chances={chances};months={months}",
             style = discord.ButtonStyle.grey
         )
     )
@@ -121,7 +127,7 @@ async def chips_ponzi(interaction: discord.Interaction):
     if "custom_id" in interaction.data:
         await interaction.response.edit_message(embed = embed, view = view)
     else:
-        await interaction.response.send_message(embed = embed, view = view, ephemeral = interaction.channel.id not in BOT_CHANNELS)
+        await interaction.response.send_message(embed = embed, view = view, ephemeral = interaction.channel.id not in ID.CHANNEL.BOTS)
 
 
 
@@ -130,7 +136,7 @@ async def bank_break_free(interaction: discord.Interaction, method: int):
     if get_chips(interaction.user) != -1:
         return await interaction.response.send_message(
             "You don't need to break free if you already are free!",
-            ephemeral = interaction.channel.id not in BOT_CHANNELS
+            ephemeral = interaction.channel.id not in ID.CHANNEL.BOTS
         )
     view = discord.ui.View(timeout = None)
     # Spoon
@@ -154,7 +160,7 @@ async def bank_break_free(interaction: discord.Interaction, method: int):
                 desc += "The spoon was poorly shaped, and couldn't be used to dig anything. However, because the materials "
                 desc += "used were gold and shiny, the prison alpha was persuaded in giving you exit plans in exchange "
                 desc += "for the spoon. Well done!"
-            os.remove(ROOT_DATA + "jailed/" + str(interaction.user.id))
+            os.remove(ROOT.DATA + "jailed/" + str(interaction.user.id))
         else:
             color = 0xff0000
             if branch == 3:
@@ -177,6 +183,8 @@ async def bank_break_free(interaction: discord.Interaction, method: int):
                     style = discord.ButtonStyle.red
                 )
             )
+        if random.choice(PROMO_CHANCE) == 0:
+            desc += SHAMELESS_PROMO
         embed = discord.Embed(
             title = "An attempt to break free, using a spoon",
             description = desc,
@@ -186,35 +194,30 @@ async def bank_break_free(interaction: discord.Interaction, method: int):
     if "custom_id" in interaction.data:
         await interaction.response.edit_message(embed = embed, view = view)
     else:
-        await interaction.response.send_message(embed = embed, ephemeral = interaction.channel.id not in BOT_CHANNELS, view = view)
+        await interaction.response.send_message(embed = embed, ephemeral = interaction.channel.id not in ID.CHANNEL.BOTS, view = view)
 
-@tree.command(
-    name = "chips",
-    description = "View how many chips you have, and whether or not you are in jail",
-    guild = discord.Object(GUILD)
-)
-@discord.app_commands.guild_only()
-async def cmd_bank_chips(interaction: discord.Interaction):
-    if get_chips(interaction.user) == -1:
-        embed = discord.Embed(
-            title = "Ceased",
-            description = f"You are in jail, and your {give_chips(interaction.user, 0)}x {DEAD_EMOJI} have been seized. " +\
-                          "If you want to break out of jail right now, you can try using `/break-free`.",
-            color = 0xff0000
-        )
-    else:
-        embed = discord.Embed(
-            title = "On the run",
-            description = f"You have {give_chips(interaction.user, 0)}x {DEAD_EMOJI}. But, the FBI is right on your tail, " +\
-                          "so be extra cautious in your next `/get-chips` scheme.",
-            color = 0x22cc22
-        )
-    return await interaction.response.send_message(embed = embed, ephemeral = interaction.channel.id not in BOT_CHANNELS)
+# @tree.command(
+#     name = "chips",
+#     description = "View how many chips you have, and whether or not you are in jail",
+#     guild = ID.GUILD_OBJ
+# )
+# @discord.app_commands.describe(
+#     member = "View someone else's account"
+# )
+# @discord.app_commands.guild_only()
+# async def cmd_bank_chips(interaction: discord.Interaction, member: discord.Member = None):
+#     user = member or interaction.user
+#     embed, view = await chips_create_embed(interaction.user, user, 0)
+#     await interaction.response.send_message(
+#         embed = embed,
+#         ephemeral = interaction.channel.id not in ID.CHANNEL.BOTS,
+#         view = view,
+#     )
 
 @tree.command(
     name = "break-free",
     description = "When you've been caught by the police and want to break free",
-    guild = discord.Object(GUILD)
+    guild = ID.GUILD_OBJ
 )
 @discord.app_commands.describe(
     method = "How to break out of jail"
@@ -226,14 +229,14 @@ async def cmd_bank_chips(interaction: discord.Interaction):
 )
 @discord.app_commands.guild_only()
 async def bank_break_attempt(interaction: discord.Interaction, method: int):
-    print(interaction, method)
+    # print(interaction, method)
     return await bank_break_free(interaction, method)
 
 
 @tree.command(
     name = "get-chips",
     description = "When you feel like you need a few more chips to fill your bag...",
-    guild = discord.Object(GUILD)
+    guild = ID.GUILD_OBJ
 )
 @discord.app_commands.describe(
     method = "How to collect your chips"
@@ -249,33 +252,34 @@ async def bank_break_attempt(interaction: discord.Interaction, method: int):
 @discord.app_commands.guild_only()
 async def cmd_get_chips(interaction: discord.Interaction, method: int):
     # Rob the bank
-    if str(interaction.user.id) in os.listdir(ROOT_DATA + "jailed"):
-        mtime = os.stat(f"{ROOT_DATA}jailed/{interaction.user.id}").st_mtime
+    if str(interaction.user.id) in os.listdir(ROOT.DATA + "jailed"):
+        mtime = os.stat(f"{ROOT.DATA}jailed/{interaction.user.id}").st_mtime
         if time.time() - mtime < 86400:
             release = f"<t:{int(mtime) + 86400}:R>"
             embed = discord.Embed(
                 title = "Jail",
-                description = f"Sorry, you can only think about future schemes while you are in jail. You will be released {release}. Or, you can use `/break-free`",
+                description = "Sorry, you can only think about future schemes while you are in jail. " + \
+                             f"You will be released {release}. Or, you can use {COMMAND_STR('break-free')}",
                 color = 0xff0000
             )
             embed.set_footer(text = "Yes, we run a risky and dirty business...")
-            return await interaction.response.send_message(embed = embed, ephemeral = interaction.channel.id not in BOT_CHANNELS)
-        os.remove(f"{ROOT_DATA}jailed/{interaction.user.id}")
+            return await interaction.response.send_message(embed = embed, ephemeral = interaction.channel.id not in ID.CHANNEL.BOTS)
+        os.remove(f"{ROOT.DATA}jailed/{interaction.user.id}")
     if method == 0:
         ttl = get_chips(interaction.user.id)
         if ttl <= 35:
             gain = random.randint(15, 50)
         elif ttl <= 10000:
-            gain = random.randint(1, 5)
+            gain = random.randint(2, 5)
         else:
             return await interaction.response.send_message(
                 "You are already drowning in chips! You don't need to pickpocket anymore",
-                ephemeral = interaction.channel.id not in BOT_CHANNELS
+                ephemeral = interaction.channel.id not in ID.CHANNEL.BOTS
             )
         ttl = give_chips(interaction.user.id, gain)
         return await interaction.response.send_message(
-            f"Your pickpocket attempt netted {gain} new chips! You now have {ttl}x {DEAD_EMOJI}",
-            ephemeral = interaction.channel.id not in BOT_CHANNELS
+            f"Your pickpocket attempt netted {gain} new chips! You now have {ttl}x {ID.EMOJI.DEAD}",
+            ephemeral = interaction.channel.id not in ID.CHANNEL.BOTS
         )
     if method == 1:
         return await get_chips_rob_bank(interaction, "0")
@@ -285,12 +289,12 @@ async def cmd_get_chips(interaction: discord.Interaction, method: int):
             earnings = give_chips(interaction.user, trade // 5)
             give_xp(interaction.user, -trade)
             return await interaction.response.send_message(
-                f"You exchanged {trade} XP for {trade // 5}x {DEAD_EMOJI}, and now have {earnings}x {DEAD_EMOJI} total.",
-                ephemeral = interaction.channel.id not in BOT_CHANNELS
+                f"You exchanged {trade} XP for {trade // 5}x {ID.EMOJI.DEAD}, and now have {earnings}x {ID.EMOJI.DEAD} total.",
+                ephemeral = interaction.channel.id not in ID.CHANNEL.BOTS
             )
         return await interaction.response.send_message(
             f"You don't have enough XP to trade for even one chip! Try chatting a bit in the discussion channels",
-            ephemeral = interaction.channel.id not in BOT_CHANNELS
+            ephemeral = interaction.channel.id not in ID.CHANNEL.BOTS
         )
     if method == 3:
         return await chips_ponzi(interaction)
@@ -298,7 +302,7 @@ async def cmd_get_chips(interaction: discord.Interaction, method: int):
 
 
 async def cmd_handle_give_chips(interaction, member, amount, till):
-    ephemeral = interaction.channel.id not in BOT_CHANNELS
+    ephemeral = interaction.channel.id not in ID.CHANNEL.BOTS
     if not till and not amount:
         return await interaction.response.send_message("Success! Nothing happened...", ephemeral = ephemeral)
     if interaction.permissions.administrator:
@@ -309,27 +313,27 @@ async def cmd_handle_give_chips(interaction, member, amount, till):
             msg = f"Took {-amount} chip{'s' if abs(amount) == 1 else ''} away!"
         else:
             msg = f"Gave {amount} chip{'s' if abs(amount) == 1 else ''}"
-        msg += f"\n{member.nick or member.name} now has {now}x {DEAD_EMOJI}"
+        msg += f"\n{member.nick or member.name} now has {now}x {ID.EMOJI.DEAD}"
         await interaction.response.send_message(msg, ephemeral = ephemeral)
     else:
+        if till:
+            amount = till - give_chips(member)
         if amount < 0:
             return await interaction.response.send_message(
                 f"You can't take chips from {member.nick or member.name}! Their safe is too secure!",
                 ephemeral = ephemeral
             )
-        if till:
-            amount = till - give_chips(member)
-        amount = min(int(get_chips(interaction.user) / 2), amount)
+        amount = min(get_chips(interaction.user), amount)
         give_chips(interaction.user, -amount)
         return await interaction.response.send_message(
-            f"You gave {amount}x {DEAD_EMOJI} to <@{member.id}>, and no taksie-backsies. They now have {give_chips(member, amount)} total.",
+            f"You gave {amount}x {ID.EMOJI.DEAD} to <@{member.id}>, and no taksie-backsies. They now have {give_chips(member, amount)} total.",
             ephemeral = ephemeral
         )
 
 @tree.command(
     name = "give-chips",
     description = "Give chips to a user",
-    guild = discord.Object(GUILD)
+    guild = ID.GUILD_OBJ
 )
 @discord.app_commands.describe(
     member = "Who to give chips to",
@@ -344,7 +348,7 @@ async def cmd_give_chips(interaction: discord.Interaction, member: discord.Membe
 @tree.command(
     name = "take-chips",
     description = "Take chips from a user",
-    guild = discord.Object(GUILD)
+    guild = ID.GUILD_OBJ
 )
 @discord.app_commands.describe(
     member = "Who to take chips from",
@@ -363,6 +367,15 @@ async def on_chips_interaction(interaction: discord.Interaction):
 
     if btn_id.startswith("chips-free="):
         return await bank_break_free(interaction, int(btn_id.split("=")[1]))
+
+    if btn_id.startswith("chips-start="):
+        start = int(btn_id.split("chips-start=")[1].split(";")[0])
+        user_id = int(btn_id.split("user=")[1])
+        user = bot.get_guild(ID.GUILD).get_member(user_id)
+        if not user:
+            user = interaction.user
+        embed, view = await chips_create_embed(interaction.user, user, start)
+        return await interaction.response.edit_message(embed = embed, view = view)
 
     if str(interaction.user.id) != btn_id.split("=")[1].split(";")[0]:
         return await interaction.response.send_message(

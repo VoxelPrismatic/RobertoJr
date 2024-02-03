@@ -1,5 +1,5 @@
 try:
-    xp_pickle = pickle.loads(open(ROOT_DATA + "xp.pickle", "rb").read())
+    xp_pickle = pickle.loads(open(ROOT.DATA + "xp.pickle", "rb").read())
 except:
     xp_pickle = {}
 
@@ -10,28 +10,44 @@ xp_pickle_save = time.time()
 def xp_equation(lvl):
     return 5 * (lvl ** 2) + (50 * lvl) + 100
 
-def give_xp(user, xp = 0):
-    if user.bot:
-        return
+def readable_num(n):
+    suffix = ["", "k", "M", "B"]
+    while n >= 1000:
+        n /= 1000
+        suffix.pop(0)
+    if n >= 100:
+        return f"{int(n)}{suffix[0]}"
+    elif n >= 10:
+        return f"{round(n, 1)}{suffix[0]}"
+    return f"{round(n, 2)}{suffix[0]}"
+
+def give_xp(user, xp = None, ret = False):
+    if type(user) == discord.Member or type(user) == discord.User:
+        if user.bot or user.get_role(ID.ROLE.TIER.LOUNGE) is None:
+            return {"xp": 0, "lvl": 0, "ttl": 0} if ret else -1
+        user_id = user.id
+    else:
+        user_id = int(user)
+
     global xp_pickle_save, xp_pickle
+
     for item in list(xp_cooldown):
         if time.time() - xp_cooldown[item] > 60:
             del xp_cooldown[item]
 
-    if user.id in xp_cooldown and xp == 0:
-        # print(xp_cooldown)
-        # print(user.id in xp_cooldown)
-        return
+    if user_id not in xp_pickle:
+        xp_pickle[user_id] = {"xp": 0, "lvl": 0, "ttl": 0}
 
-    if user.id not in xp_pickle:
-        ttl_xp = 0
-        # color = ""
-    else:
-        ttl_xp = xp_pickle[user.id]["ttl"]
-        # color = xp_pickle[user.id]["color"] if "color" in xp_pickle[user.id] else ""
-    ttl_xp += xp or random.randint(3, 6)
-    ttl_xp = max(ttl_xp, 0)
-    true_xp = ttl_xp
+    if ret:
+        return xp_pickle[user_id]
+
+    ttl_xp = xp_pickle[user_id]["ttl"]
+
+    if user_id in xp_cooldown and xp is None:
+        return ttl_xp
+
+    ttl_xp += random.randint(1, 4) if xp is None else xp
+    true_xp = ttl_xp = int(max(ttl_xp, 0))
 
     for true_lvl in range(1000):
         lvl_xp = xp_equation(true_lvl)
@@ -39,128 +55,55 @@ def give_xp(user, xp = 0):
             break
         true_xp -= lvl_xp
 
-    xp_pickle[user.id] = {
+    xp_pickle[user_id] = {
         "xp": true_xp,
         "lvl": true_lvl,
         "ttl": ttl_xp,
-        # "color": color
     }
 
-    if xp == 0:
-        xp_cooldown[user.id] = time.time()
+    if xp is None:
+        xp_cooldown[user_id] = time.time()
 
-    if time.time() - xp_pickle_save > 30:
+    if time.time() - xp_pickle_save > 15:
         xp_pickle_save = time.time()
-        open(ROOT_DATA + "xp.pickle", "wb+").write(pickle.dumps(xp_pickle))
+        open(ROOT.DATA + "xp.pickle", "wb+").write(pickle.dumps(xp_pickle))
 
-def get_bar(percent):
-    columns = 20
-    done = percent * columns
-    prog = "/" * max(min(int(done), columns), 0)
-    done = int(done * 10) % 10
-    if done >= 8:
-        prog += "|"
-    elif done >= 5:
-        prog += ":"
-    elif done >= 2:
-        prog += "."
-    return prog.ljust(columns)
+    return ttl_xp
 
-async def xp_create_embed(author, user, start = 0):
-    if user.id in xp_pickle and not user.bot:
-        data = xp_pickle[user.id]
-        if data['xp'] < 0:
-            xp_pickle[user.id] = data = {"xp": 0, "lvl": 0, "ttl": 0}
-    else:
-        data = {"xp": 0, "lvl": 0, "ttl": 0}
-    if author.id in xp_pickle and not user.bot:
-        data_self = xp_pickle[author.id]
-        if data_self['xp'] < 0:
-            xp_pickle[author.id] = data_self = {"xp": 0, "lvl": 0, "ttl": 0}
-    else:
-        data_self = {"xp": 0, "lvl": 0, "ttl": 0}
 
-    xp_needed = xp_equation(data["lvl"] + 1)
-    leaders = {}
-    for user_id in xp_pickle:
-        if xp_pickle[user_id]["ttl"] in leaders:
-            leaders[xp_pickle[user_id]["ttl"]].append(user_id)
-        else:
-            leaders[xp_pickle[user_id]["ttl"]] = [user_id]
-    ranks = sorted(set(leaders), reverse = True)
-    lb = []
-    for r in ranks:
-        lb.extend(leaders[r])
-    try:
-        rank = lb.index(user.id) + 1
-    except ValueError:
-        rank = len(lb)
-    try:
-        rank_self = lb.index(author.id) + 1
-    except ValueError:
-        rank_self = len(lb)
-
-    for role in user.roles:
-        if role.id == ELITE_ROLE:
-            elite_emoji = ELITE_EMOJI + " "
-            break
-    else:
-        elite_emoji = ""
-
-    # print(data['lvl'], '|;', data['xp'], '|;', rank, '|;', 1 if elite_emoji else 0)
-    profile_picture = (user.guild_avatar or user.avatar or user.default_avatar)
-    saved_name = ROOT_DATA + f"levels/saved/{user.id}/{data['lvl']}-{data['xp']}-{rank}-{1 if elite_emoji else 0}.webp"
+async def create_chips_card(profile_picture, user, data, rank, elite_emoji):
+    saved_name = ROOT.DATA + f"levels/saved/{user.id}/{data['lvl']}-{data['xp']}-{rank}-{1 if elite_emoji else 0}.webp"
     if not os.path.isfile(saved_name):
-        if not os.path.isfile(ROOT_DATA + f"levels/pfp/{user.id}/{profile_picture.key}.webp"):
-            pfp_dir = ROOT_DATA + f"levels/pfp/{user.id}/"
+        if not os.path.isfile(ROOT.DATA + f"levels/pfp/{user.id}/{profile_picture.key}.webp"):
+            pfp_dir = ROOT.DATA + f"levels/pfp/{user.id}/"
+
             if not os.path.isdir(pfp_dir):
                 os.mkdir(pfp_dir)
             for f in os.listdir(pfp_dir):
                 os.remove(pfp_dir + f)
-            await profile_picture.with_size(128).with_format("webp").save(open(pfp_dir + profile_picture.key + ".webp", "wb+"))
-        proc = subprocess.Popen(["python3", ROOT_DATA + "levels/generate-card.py", str(user.id), str(data['lvl']), str(data['xp']), str(rank), str(user), '1' if elite_emoji else '0'])
+
+            await profile_picture.with_size(128).with_format("webp").save(
+                open(pfp_dir + profile_picture.key + ".webp", "wb+")
+            )
+
+        proc = subprocess.Popen([
+            "python3",
+            ROOT.DATA + "levels/generate-card.py",
+            str(user.id),
+            str(data['lvl']),
+            str(data['xp']),
+            str(rank),
+            str(user),
+            '1' if elite_emoji else '0'
+        ])
         while proc.poll() is None:
             await asyncio.sleep(0.1)
+    return discord.File(open(saved_name, "rb"), filename = f"{user.id}.webp")
 
-    fp = discord.File(open(saved_name, "rb"), filename = f"{user.id}.webp")
-    leaderboard = ""
-    passed = []
-    c = 0
-    n = -1
-    first_rank = 0
-    last_rank = 0
+def xp_create_header_footer(user, author, rank, rank_self, data, data_self, first_rank, last_rank, passed):
+    entry_user = f"**{rank:02}.** <@{user.id}>; {readable_num(data['ttl'])} {ID.EMOJI.DEAD}"
+    entry_self = f"**{rank_self:02}.** <@{author.id}>; {readable_num(data_self['ttl'])} {ID.EMOJI.DEAD}"
 
-    for amount in ranks:
-        for q in leaders[amount]:
-            n += 1
-            if n < start:
-                continue
-            if c == 10:
-                break
-            try:
-                m = lb.index(q) + 1
-            except ValueError:
-                m = len(lb)
-            first_rank = first_rank or m
-            last_rank = m
-            if m == rank or m == rank_self:
-                leaderboard += "> "
-            match m:
-                case 1:
-                    leaderboard += "\U0001f947"
-                case 2:
-                    leaderboard += "\U0001f948"
-                case 3:
-                    leaderboard += "\U0001f949"
-                case _:
-                    leaderboard += f"**{m:02}.**" if q == user.id or q == author.id else f"{m:02}."
-            passed.append(q)
-            leaderboard += f" <@{q}>; Lv{xp_pickle[q]['lvl']}\n"
-            c += 1
-
-    leaderboard = leaderboard.strip()
-    entry_user = f"**{rank:02}.** <@{user.id}>; Lv{data['lvl']}"
-    entry_self = f"**{rank_self:02}.** <@{author.id}>; Lv{data_self['lvl']}"
     leaderboard_head = ""
     leaderboard_foot = ""
 
@@ -249,18 +192,9 @@ async def xp_create_embed(author, user, start = 0):
     else:
         print("Rank:", rank, "| RankSelf:", rank_self, "| First:", first_rank, "| Last:", last_rank)
 
-    leaderboard = leaderboard_head + leaderboard + leaderboard_foot
+    return leaderboard_head, leaderboard_foot
 
-    embed = discord.Embed(
-        description = leaderboard + "\n\n**Note:** Your rank card will not update until you re-run the `/xp` command",
-        color = 0xECB300 if elite_emoji else 0xA46B31
-    )
-
-    embed.set_footer(text = f"Total XP: {data['ttl']}")
-    embed.set_author(name = str(user))
-
-
-    embed.set_thumbnail(url = profile_picture.url)
+def xp_create_view(start, user):
     view = discord.ui.View(timeout = None)
     view.add_item(
         discord.ui.Button(
@@ -293,28 +227,129 @@ async def xp_create_embed(author, user, start = 0):
             label = f"Refresh"
         )
     )
+    return view
+
+async def xp_create_embed(author, user, start = 0):
+    data = give_xp(user, 0, 1)
+    data_self = give_xp(author, 0, 1)
+
+    xp_needed = xp_equation(data["lvl"] + 1)
+    leaders = {}
+    ttl_passed = start * 10 + 15
+    author_passed = False
+    user_passed = False
+
+    for user_id in xp_pickle:
+        ttl_ = xp_pickle[user_id]["ttl"]
+        if ttl_ in leaders:
+            leaders[ttl_].add(user_id)
+        else:
+            leaders[ttl_] = {user_id}
+
+        if int(user_id) == author.id:
+            author_passed = True
+        if int(user_id) == user.id:
+            user_padded = True
+
+        ttl_passed -= 1
+        if ttl_passed < 0 and author_passed and user_passed:
+            break
+
+    ranks = sorted(set(leaders), reverse = True)
+    lb = []
+    for r in ranks:
+        lb.extend(leaders[r])
+
+    rank = lb.index(user.id) + 1 if user.id in lb else len(lb)
+    rank_self = lb.index(author.id) + 1 if author.id in lb else len(lb)
+
+    elite_emoji = ID.EMOJI.ELITE + " " if user.get_role(ID.ROLE.TIER.ELITE) else ""
+
+    profile_picture = (user.guild_avatar or user.avatar or user.default_avatar)
+
+    fp = await create_chips_card(profile_picture, user, data, rank, elite_emoji) if start == 0 else None
+
+    leaderboard = ""
+    passed = []
+
+    c = 0
+    n = -1
+    first_rank = 0
+    last_rank = 0
+    seized = '\u274c'
+
+    for amount in ranks:
+        for q in leaders[amount]:
+            if (n := n + 1) < start:
+                continue
+
+            if c == 10:
+                break
+
+            m = lb.index(int(q)) + 1 if int(q) in lb else len(lb)
+
+            first_rank = first_rank or m
+            last_rank = m
+
+            match m:
+                case 1 | 2 | 3:
+                    leaderboard += " \U0001f947\U0001f948\U0001f949"[m]
+                case _:
+                    leaderboard += f"**{m:02}.**" if q == user.id or q == author.id else f"\u206f{m:02}."
+
+            passed.append(int(q))
+
+            if get_chips(q) == -1:
+                leaderboard += f" <@{q}>; {readable_num(xp_pickle[q]['ttl'])} {seized}\n"
+            elif m == rank or m == rank_self:
+                leaderboard += f" <@{q}>; {readable_num(xp_pickle[q]['ttl'])} {ID.EMOJI.DEAD}\n"
+            else:
+                leaderboard += f" <@{q}>; {readable_num(xp_pickle[q]['ttl'])}\n"
+            c += 1
+
+    leaderboard = leaderboard.strip()
+
+    leaderboard_head, leaderboard_foot = xp_create_header_footer(
+        user, author, rank, rank_self, data, data_self, first_rank, last_rank, passed
+    )
+
+
+    leaderboard = leaderboard_head + leaderboard + leaderboard_foot
+    leaderboard += f"\n\n**Note:** Your rank card will not update until you run {COMMAND_STR('chips')} again"
+
+    if random.choice(PROMO_CHANCE) == 0:
+        leaderboard += SHAMELESS_PROMO
+
+
+    embed = discord.Embed(
+        description = leaderboard,
+        color = 0xECB300 if elite_emoji else 0xA46B31,
+        title = "Chips Leaderboard"
+    )
+
+    embed.set_author(name = str(user))
+
+    embed.set_thumbnail(url = profile_picture.url)
+
+    view = xp_create_view(start, user)
+
     for user_id in passed:
-        if not bot.get_guild(GUILD).get_member(user_id):
+        if not (m := bot.get_guild(ID.GUILD).get_member(user_id)):
             try:
-                await bot.get_guild(GUILD).fetch_member(user_id)
+                m = await bot.get_guild(ID.GUILD).fetch_member(user_id)
             except:
                 del xp_pickle[user_id]
+                continue
+
+        if not any(m.get_role(r) for r in ID.ROLE.ALL_MEMBERS):
+            del xp_pickle[user_id]
 
     return embed, view, fp
 
-async def cmd_handle_give_xp(interaction, member, amount):
-    give_xp(member, amount)
-    if amount < 0:
-        msg = f"Took {-amount} XP away!"
-    else:
-        msg = f"Gave {amount} XP"
-    embed, view, fp = await xp_create_embed(member, member, 0)
-    await interaction.response.send_message(msg, file = fp)
-
 @tree.command(
-    name = "xp",
-    description = "View your level and your rank on the leaderboard",
-    guild = discord.Object(GUILD)
+    name = "chips",
+    description = "View how many chips you have, and whether or not you are in jail",
+    guild = ID.GUILD_OBJ
 )
 @discord.app_commands.describe(
     member = "View someone else's rank"
@@ -325,39 +360,7 @@ async def cmd_xp(interaction: discord.Interaction, member: discord.Member = None
     embed, view, fp = await xp_create_embed(interaction.user, user, 0)
     await interaction.response.send_message(
         embed = embed,
-        ephemeral = interaction.channel.id not in BOT_CHANNELS,
+        ephemeral = interaction.channel.id not in ID.CHANNEL.BOTS,
         view = view,
         file = fp
     )
-
-@tree.command(
-    name = "give-xp",
-    description = "Give XP to a user",
-    guild = discord.Object(GUILD)
-)
-@discord.app_commands.describe(
-    member = "Who to give XP to",
-    amount = "How much XP to give. Use a negative number to take away XP"
-)
-@discord.app_commands.default_permissions(
-    administrator = True
-)
-@discord.app_commands.guild_only()
-async def cmd_give_xp(interaction: discord.Interaction, member: discord.Member, amount: int):
-    return await cmd_handle_give_xp(interaction, member, -amount)
-
-@tree.command(
-    name = "take-xp",
-    description = "Take XP from a user",
-    guild = discord.Object(GUILD)
-)
-@discord.app_commands.describe(
-    member = "Who to take XP from",
-    amount = "How much XP to take. Use a negative number to give XP"
-)
-@discord.app_commands.default_permissions(
-    administrator = True
-)
-@discord.app_commands.guild_only()
-async def cmd_take_xp(interaction: discord.Interaction, member: discord.Member, amount: int):
-    return await cmd_handle_give_xp(interaction, member, -amount)

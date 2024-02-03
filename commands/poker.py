@@ -1,9 +1,9 @@
-ROOT_POKER = ROOT_DATA + "games/poker/"
+ROOT.GAMES.POKER = ROOT.DATA + "games/poker/"
 
 def rng_id():
     game_id = f"{random.randint(0, 65535):04x}"
-    game_ids = os.listdir(ROOT_POKER)
-    while game_id in game_ids and time.time() - os.stat(ROOT_POKER + game_id).st_mtime < 600:
+    game_ids = os.listdir(ROOT.GAMES.POKER)
+    while game_id in game_ids and time.time() - os.stat(ROOT.GAMES.POKER + game_id).st_mtime < 600:
         game_id = f"{random.randint(0, 65535):04x}"
 
     return game_id
@@ -40,7 +40,7 @@ def pop_card(game_data):
 @tree.command(
     name = "poker",
     description = "Texas-Hold 'Em style poker, you can invite up to 8 people",
-    guild = discord.Object(GUILD)
+    guild = ID.GUILD_OBJ
 )
 @discord.app_commands.describe(
     player1 = "Who do you want to invite? You do not need to invite yourself",
@@ -67,9 +67,9 @@ async def poker(interaction: discord.Interaction, player1: discord.Member = None
                 player3: discord.Member = None, player4: discord.Member = None, player5: discord.Member = None,
                 player6: discord.Member = None, player7: discord.Member = None, player8: discord.Member = None,
                 blind_size: int = 5):
-    if interaction.channel.id not in BOT_CHANNELS:
+    if interaction.channel.id not in ID.CHANNEL.BOTS:
         msg = "Sorry, you can only play poker in the following channels:\n- "
-        msg += "\n- ".join(f'<#{c}>' for c in BOT_CHANNELS)
+        msg += "\n- ".join(f'<#{c}>' for c in ID.CHANNEL.BOTS)
         return await interaction.response.send_message(msg, ephemeral = True, delete_after = 10)
     players = [interaction.user]
     view = discord.ui.View(timeout = None)
@@ -79,7 +79,7 @@ async def poker(interaction: discord.Interaction, player1: discord.Member = None
         msg = "Whoops! The guards already confiscated your cards, so you can't play poker anyway!"
         return await interaction.response.send_message(msg)
     if get_chips(interaction.user) == 0:
-        msg = "Whoops! You can't play if you don't have a bet to make! Use `/get-chips` to get started!"
+        msg = f"Whoops! You can't play if you don't have a bet to make! Use {COMMAND_STR('get-chips')} to get started!"
         return await interaction.response.send_message(msg)
 
 
@@ -103,7 +103,7 @@ async def poker(interaction: discord.Interaction, player1: discord.Member = None
             )
         )
 
-    open(ROOT_POKER + game_id, "w+").write(json.dumps({
+    open(ROOT.GAMES.POKER + game_id, "w+").write(json.dumps({
         "waiting": [str(p.id) for p in players[1:]],
         "joined": [str(players[0].id)],
         "blind-size": blind_size
@@ -131,11 +131,11 @@ async def poker(interaction: discord.Interaction, player1: discord.Member = None
     )
 
 async def poker_player_join(interaction: discord.Interaction, game_id):
-    game_data = json.loads(open(ROOT_POKER + game_id).read())
+    game_data = json.loads(open(ROOT.GAMES.POKER + game_id).read())
     game_data["joined"].append(str(interaction.user.id))
     game_data["waiting"].remove(str(interaction.user.id))
 
-    open(ROOT_POKER + game_id, "w+").write(json.dumps(game_data, indent = 4))
+    open(ROOT.GAMES.POKER + game_id, "w+").write(json.dumps(game_data, indent = 4))
 
     if len(game_data["waiting"]) == 0:
         return await poker_begin_seating(interaction, interaction.user.id, game_id)
@@ -180,7 +180,7 @@ async def poker_create_embed(game_id, game_data):
     position_fold = "\u274c"
     card_emoji = "\U0001f3b4"
     ttl_bet = game_data["pot"]
-    description = f"\U0001f4cc <@{bot.user.id}> **Pot:** {ttl_bet}x {DEAD_EMOJI}\n    "
+    description = f"\U0001f4cc <@{bot.user.id}> **Pot:** {ttl_bet}x {ID.EMOJI.DEAD}\n    "
     description += (reveal_cards(game_data["visible"][:5]) or "*still in pre-flop*") + "\n\n"
     values = {}
     game_over = len(game_data["visible"]) >= 6
@@ -196,7 +196,7 @@ async def poker_create_embed(game_id, game_data):
             description += position_marker
         else:
             description += position
-        description += f" <@{player}> **Bet:** {game_data['bets'][player]}x {DEAD_EMOJI} {game_data['action'][player]}\n"
+        description += f" <@{player}> **Bet:** {game_data['bets'][player]}x {ID.EMOJI.DEAD} {game_data['action'][player]}\n"
         if player in game_data["shown"]:
             description += reveal_cards(game_data["hands"][player]) + f" | Table: {game_data['on-table'][player]} chips\n\n"
         else:
@@ -208,6 +208,9 @@ async def poker_create_embed(game_id, game_data):
     if not game_over:
         description += f"**Minimum bet amount:** {big_blind}"
         description += "\n\n**Note:** To view your hand, click the blue 'View hand' button below"
+
+    if random.choice(PROMO_CHANCE) == 0:
+        description += SHAMELESS_PROMO
 
     embed = discord.Embed(
         title = "Poker - Texas-Hold'em",
@@ -222,9 +225,9 @@ async def poker_create_embed(game_id, game_data):
         for player in game_data["joined"]:
             if player in game_data["shown"]:
                 continue
-            mbr = bot.get_guild(GUILD).get_member(player)
+            mbr = bot.get_guild(ID.GUILD).get_member(player)
             if mbr is None:
-                mbr = await bot.get_guild(GUILD).fetch_member(player)
+                mbr = await bot.get_guild(ID.GUILD).fetch_member(player)
             view.add_item(
                 discord.ui.Button(
                     label = (mbr.name if len(mbr.name) < 15 else mbr.name[:12] + "...") + ": Reveal Cards!",
@@ -282,9 +285,9 @@ async def poker_create_embed(game_id, game_data):
             )
         )
     else:
-        mbr = bot.get_guild(GUILD).get_member(game_data['current'])
+        mbr = bot.get_guild(ID.GUILD).get_member(game_data['current'])
         if mbr is None:
-            mbr = await bot.get_guild(GUILD).fetch_member(game_data['current'])
+            mbr = await bot.get_guild(ID.GUILD).fetch_member(game_data['current'])
         view.add_item(
             discord.ui.Button(
                 label = (mbr.name if len(mbr.name) < 15 else mbr.name[:12] + "...") + ": You ran out of chips",
@@ -316,7 +319,7 @@ async def poker_create_embed(game_id, game_data):
 
 
 async def poker_begin_seating(interaction: discord.Interaction, user_id, game_id):
-    game_data = json.loads(open(ROOT_POKER + game_id).read())
+    game_data = json.loads(open(ROOT.GAMES.POKER + game_id).read())
     if "custom_id" in interaction.data and interaction.data["custom_id"].startswith("poker-seating"):
         position = str(interaction.data["custom_id"].split("position=")[1].split(";")[0])
         game_data["seating"][position] = user_id
@@ -328,10 +331,10 @@ async def poker_begin_seating(interaction: discord.Interaction, user_id, game_id
     except:
         for position in sorted(int(i) for i in game_data["seating"]):
             game_data["joined"].append(game_data["seating"][str(position)])
-        open(ROOT_POKER + game_id, "w+").write(json.dumps(game_data, indent = 4))
+        open(ROOT.GAMES.POKER + game_id, "w+").write(json.dumps(game_data, indent = 4))
         return await poker_begin_bets(interaction, interaction.user.id, game_id)
 
-    open(ROOT_POKER + game_id, "w+").write(json.dumps(game_data, indent = 4))
+    open(ROOT.GAMES.POKER + game_id, "w+").write(json.dumps(game_data, indent = 4))
 
     positions = {
         "1": ["the small blind", "\U0001f539"],
@@ -379,7 +382,7 @@ async def poker_begin_seating(interaction: discord.Interaction, user_id, game_id
     await interaction.followup.delete_message(interaction.message.id)
 
 async def poker_begin_bets(interaction: discord.Interaction, user_id, game_id, exists = False):
-    game_data = json.loads(open(ROOT_POKER + game_id).read())
+    game_data = json.loads(open(ROOT.GAMES.POKER + game_id).read())
     base_bet = game_data["blind-size"]
     game_data["bets"] = {}
     game_data["action"] = {c: "" for c in game_data['joined']}
@@ -395,7 +398,7 @@ async def poker_begin_bets(interaction: discord.Interaction, user_id, game_id, e
         game_data["pot"] += game_data["bets"][player]
 
 
-    open(ROOT_POKER + game_id, "w+").write(json.dumps(game_data, indent = 4))
+    open(ROOT.GAMES.POKER + game_id, "w+").write(json.dumps(game_data, indent = 4))
     if not exists:
         return await poker_bring_chips(interaction, interaction.user.id, game_id)
     for player in game_data['joined'][:]:
@@ -404,7 +407,7 @@ async def poker_begin_bets(interaction: discord.Interaction, user_id, game_id, e
             continue
         game_data['on-table'][player] -= game_data['bets'][player]
         give_chips(player, -game_data['bets'][player])
-        open(ROOT_POKER + game_id, "w+").write(json.dumps(game_data, indent = 4))
+        open(ROOT.GAMES.POKER + game_id, "w+").write(json.dumps(game_data, indent = 4))
     if len(game_data["joined"]) == 1:
         await interaction.response.send_message(
             "Woops! Looks like everyone has been eliminated!\n"
@@ -414,7 +417,7 @@ async def poker_begin_bets(interaction: discord.Interaction, user_id, game_id, e
     return await poker_begin_match(interaction, game_id)
 
 async def poker_begin_match(interaction: discord.Interaction, game_id):
-    game_data = json.loads(open(ROOT_POKER + game_id).read())
+    game_data = json.loads(open(ROOT.GAMES.POKER + game_id).read())
 
     # Setup
     game_data["folded"] = []
@@ -444,7 +447,7 @@ async def poker_begin_match(interaction: discord.Interaction, game_id):
             game_data["hands"][player].append(pop_card(game_data))
 
     game_id = rng_id()
-    open(ROOT_POKER + game_id, "w+").write(json.dumps(game_data, indent = 4))
+    open(ROOT.GAMES.POKER + game_id, "w+").write(json.dumps(game_data, indent = 4))
 
     embed, view, winner = await poker_create_embed(game_id, game_data)
     # await interaction.delete_original_response()
@@ -458,7 +461,7 @@ async def poker_begin_match(interaction: discord.Interaction, game_id):
     # await interaction.message.edit(content = f"Game is currently here: {msg.jump_url}", view = discord.ui.View(timeout = None))
 
 async def poker_continue_match(interaction: discord.Interaction, user_id, game_id, action):
-    game_data = json.loads(open(ROOT_POKER + game_id).read())
+    game_data = json.loads(open(ROOT.GAMES.POKER + game_id).read())
     big_blind = max(list(game_data["bets"].values()))
     if action == "fold":
         game_data["folded"].append(user_id)
@@ -484,7 +487,7 @@ async def poker_continue_match(interaction: discord.Interaction, user_id, game_i
             )
         if amount < big_blind:
             return await interaction.response.send_message(
-                f"Whoops! You must bet more than the big blind of {big_blind}x {DEAD_EMOJI}",
+                f"Whoops! You must bet more than the big blind of {big_blind}x {ID.EMOJI.DEAD}",
                 ephemeral = True, delete_after = 10
             )
         if amount > game_data["on-table"][user_id]:
@@ -541,7 +544,7 @@ async def poker_continue_match(interaction: discord.Interaction, user_id, game_i
         n += 1
 
     game_data["action"][game_data["current"]] = ""
-    open(ROOT_POKER + game_id, "w+").write(json.dumps(game_data, indent = 4))
+    open(ROOT.GAMES.POKER + game_id, "w+").write(json.dumps(game_data, indent = 4))
 
     embed, view, winner = await poker_create_embed(game_id, game_data)
     if winner:
@@ -570,8 +573,8 @@ async def poker_continue_match(interaction: discord.Interaction, user_id, game_i
         else:
             method = "with **Utter Garbage!**"
         game_data["action"] = {c: "" for c in game_data['joined']}
-        open(ROOT_POKER + game_id, "w+").write(json.dumps(game_data, indent = 4))
-        msg = f"<@{winner}> wins {pot}x {DEAD_EMOJI} {method}"
+        open(ROOT.GAMES.POKER + game_id, "w+").write(json.dumps(game_data, indent = 4))
+        msg = f"<@{winner}> wins {pot}x {ID.EMOJI.DEAD} {method}"
     else:
         msg = f"Alright, <@{game_data['current']}> is up!"
 
@@ -602,7 +605,7 @@ async def on_poker_interaction(interaction: discord.Interaction):
     if btn_id.startswith("poker-n-a"):
         return await interaction.response.defer(thinking = False)
     if btn_id.startswith("poker-view="):
-        game_data = json.loads(open(ROOT_POKER + game_id).read())
+        game_data = json.loads(open(ROOT.GAMES.POKER + game_id).read())
         modal = discord.ui.Modal(title = "Your cards", timeout = None, custom_id = "poker-n-a")
         if str(interaction.user.id) not in game_data["joined"]:
             modal.add_item(
@@ -623,9 +626,9 @@ async def on_poker_interaction(interaction: discord.Interaction):
         return await interaction.response.send_modal(modal)
 
     if btn_id.startswith("poker-rematch=ANY"):
-        game_data = json.loads(open(ROOT_POKER + game_id).read())
+        game_data = json.loads(open(ROOT.GAMES.POKER + game_id).read())
         game_data["joined"] = game_data["joined"][1:] + [game_data["joined"][0]]
-        open(ROOT_POKER + game_id, "w+").write(json.dumps(game_data, indent = 4))
+        open(ROOT.GAMES.POKER + game_id, "w+").write(json.dumps(game_data, indent = 4))
         return await poker_begin_bets(interaction, str(interaction.user.id), game_id, True)
 
     if str(interaction.user.id) != btn_id.split("=")[1].split(";")[0]:
@@ -642,24 +645,33 @@ async def on_poker_interaction(interaction: discord.Interaction):
     if btn_id.startswith("poker-join="):
         return await poker_player_join(interaction, game_id)
     if btn_id.startswith("poker-start-modal="):
-        modal = discord.ui.Modal(title = "Place your bets", timeout = None, custom_id = btn_id.replace("start-modal", "bring-chips"))
+        modal = discord.ui.Modal(
+            title = "Place your bets",
+            timeout = None,
+            custom_id = btn_id.replace("start-modal", "bring-chips")
+        )
+
         modal.add_item(
             discord.ui.TextInput(
                 label = "How many chips do you want to bring?",
                 custom_id = "bet-amount",
-                placeholder = f"You have {get_chips(interaction.user)} chips available"
+                placeholder = f"You have {get_chips(interaction.user):,} chips available"
             )
         )
+
         return await interaction.response.send_modal(modal)
+
     if btn_id.startswith("poker-reveal="):
-        game_data = json.loads(open(ROOT_POKER + game_id).read())
+        game_data = json.loads(open(ROOT.GAMES.POKER + game_id).read())
         game_data["shown"].append(str(interaction.user.id))
-        open(ROOT_POKER + game_id, "w+").write(json.dumps(game_data, indent = 4))
+        open(ROOT.GAMES.POKER + game_id, "w+").write(json.dumps(game_data, indent = 4))
         embed, view, winner = await poker_create_embed(game_id, game_data)
         return await interaction.response.edit_message(content = interaction.message.content, embed = embed, view = view)
+
     if btn_id.startswith("poker-bring-chips"):
         user_id = btn_id.split("=")[1].split(";")[0]
         return await poker_bring_chips(interaction, user_id, game_id)
+
     if btn_id.startswith("poker-seating"):
         user_id = btn_id.split("=")[1].split(";")[0]
         return await poker_begin_seating(interaction, user_id, game_id)
@@ -670,13 +682,18 @@ async def on_poker_interaction(interaction: discord.Interaction):
         return await poker_continue_match(interaction, user_id, game_id, play_action)
 
     if btn_id.startswith("poker-raise-modal="):
-        game_data = json.loads(open(ROOT_POKER + game_id).read())
-        modal = discord.ui.Modal(title = "Place your bets", timeout = None, custom_id = btn_id.replace("raise-modal", "play"))
+        game_data = json.loads(open(ROOT.GAMES.POKER + game_id).read())
+        modal = discord.ui.Modal(
+            title = "Place your bets",
+            timeout = None,
+            custom_id = btn_id.replace("raise-modal", "play")
+        )
+
         modal.add_item(
             discord.ui.TextInput(
                 label = "Amount",
                 custom_id = "bet-amount",
-                placeholder = f"You have {game_data['on-table'][str(interaction.user.id)]} chips on the table"
+                placeholder = f"You have {game_data['on-table'][str(interaction.user.id)]:,} chips on the table"
             )
         )
         return await interaction.response.send_modal(modal)
@@ -687,7 +704,7 @@ async def on_poker_interaction(interaction: discord.Interaction):
 
 
 async def poker_bring_chips(interaction: discord.Interaction, user_id, game_id):
-    game_data = json.loads(open(ROOT_POKER + game_id).read())
+    game_data = json.loads(open(ROOT.GAMES.POKER + game_id).read())
     print(interaction.data)
     if "custom_id" in interaction.data and interaction.data["custom_id"].startswith("poker-bring-chips"):
         if interaction.data["custom_id"].startswith("poker-bring-chips-all"):
@@ -710,7 +727,8 @@ async def poker_bring_chips(interaction: discord.Interaction, user_id, game_id):
             )
         elif amount > get_chips(interaction.user):
             return await interaction.response.send_message(
-                f"Whoops! You can't spend more than you have: {get_chips(interaction.user)}x {DEAD_EMOJI}. No fret, you can click the button to bet again",
+                f"Whoops! You can't spend more than you have: {get_chips(interaction.user):,}x {ID.EMOJI.DEAD}."
+                    "No fret, you can click the button to bet again",
                 ephemeral = True,
                 delete_after = 10
             )
@@ -718,7 +736,7 @@ async def poker_bring_chips(interaction: discord.Interaction, user_id, game_id):
     else:
         game_data["on-table"] = {}
 
-    open(ROOT_POKER + game_id, "w+").write(json.dumps(game_data, indent = 4))
+    open(ROOT.GAMES.POKER + game_id, "w+").write(json.dumps(game_data, indent = 4))
 
     desc = ""
     msg = ""
@@ -727,12 +745,12 @@ async def poker_bring_chips(interaction: discord.Interaction, user_id, game_id):
             msg += f"\n<@{player}>, you're up!"
             break
         else:
-            desc += f"<@{player}> brings {game_data['on-table'][str(player)]}x {DEAD_EMOJI}\n"
+            desc += f"<@{player}> brings {game_data['on-table'][str(player)]:,}x {ID.EMOJI.DEAD}\n"
     else:
         for player in game_data['joined']:
             game_data['on-table'][player] -= game_data['bets'][player]
             give_chips(player, -game_data['bets'][player])
-        open(ROOT_POKER + game_id, "w+").write(json.dumps(game_data, indent = 4))
+        open(ROOT.GAMES.POKER + game_id, "w+").write(json.dumps(game_data, indent = 4))
         return await poker_begin_match(interaction, game_id)
     warning = "\n\n**Note:** This is how many chips you are bringing, not your bet. " + \
               "We suggest bringing at least 100 chips"
@@ -749,7 +767,7 @@ async def poker_bring_chips(interaction: discord.Interaction, user_id, game_id):
             label = "Choose amount",
             custom_id = f"poker-start-modal={player};match={game_id}",
             style = discord.ButtonStyle.blurple,
-            emoji = DEAD_EMOJI
+            emoji = ID.EMOJI.DEAD
         )
     )
     view.add_item(
