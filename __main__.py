@@ -485,4 +485,4 @@ async def on_interaction(interaction: discord.Interaction):
         return await on_interaction_main_guide_page(interaction)
 
 if __name__ == "__main__":
-    bot.run("MTEwMzgwMDcyNTAyNjM3MzcwMg.G5dXLP.h7z3vuedElEG0A3m2Q8yY9J4YD0F3o4QXcogP4")
+    bot.run("oops")
